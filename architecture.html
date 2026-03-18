@@ -1,0 +1,865 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Academic Research Agent — Arquitetura</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700;900&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg: #0b0d1a;
+    --bg-card: rgba(15, 20, 42, 0.85);
+    --surface: rgba(22, 33, 62, 0.6);
+    --border: rgba(201, 125, 255, 0.18);
+    --border-accent: rgba(233, 69, 96, 0.3);
+    --text: #e0e0e0;
+    --text-dim: #8a8aab;
+    --text-bright: #f0f0ff;
+    --purple: #c77dff;
+    --pink: #e94560;
+    --blue: #64b4ff;
+    --cyan: #00d4aa;
+    --gold: #ffd166;
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    overflow-x: hidden;
+  }
+
+  /* ── GRAIN OVERLAY ── */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 9999;
+  }
+
+  /* ── HERO ── */
+  .hero {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    padding: 4rem 2rem;
+    position: relative;
+  }
+
+  .hero::before {
+    content: '';
+    position: absolute;
+    top: -20%;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 800px;
+    height: 800px;
+    background: radial-gradient(ellipse, rgba(201,125,255,0.08) 0%, rgba(233,69,96,0.04) 40%, transparent 70%);
+    pointer-events: none;
+  }
+
+  .hero-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(201,125,255,0.1);
+    border: 1px solid var(--border);
+    border-radius: 40px;
+    padding: 6px 20px;
+    font-size: 0.78rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--purple);
+    margin-bottom: 2rem;
+    animation: fadeDown 0.8s ease-out;
+  }
+
+  .hero h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(2.8rem, 6vw, 5.5rem);
+    font-weight: 900;
+    line-height: 1.08;
+    letter-spacing: -0.02em;
+    margin-bottom: 1.5rem;
+    animation: fadeDown 0.8s ease-out 0.1s both;
+  }
+
+  .hero h1 .gradient {
+    background: linear-gradient(135deg, var(--purple), var(--pink), var(--blue));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .hero-sub {
+    font-size: 1.15rem;
+    color: var(--text-dim);
+    max-width: 580px;
+    margin-bottom: 3rem;
+    animation: fadeDown 0.8s ease-out 0.2s both;
+  }
+
+  .hero-stack {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    justify-content: center;
+    animation: fadeDown 0.8s ease-out 0.3s both;
+  }
+
+  .tech-pill {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 6px 16px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    transition: all 0.3s;
+  }
+
+  .tech-pill:hover {
+    border-color: var(--purple);
+    color: var(--purple);
+    transform: translateY(-2px);
+  }
+
+  .scroll-hint {
+    position: absolute;
+    bottom: 2rem;
+    left: 50%;
+    transform: translateX(-50%);
+    animation: bounce 2s infinite;
+    color: var(--text-dim);
+    font-size: 0.75rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .scroll-hint span {
+    display: block;
+    width: 1px;
+    height: 40px;
+    background: linear-gradient(to bottom, var(--purple), transparent);
+    margin: 8px auto 0;
+  }
+
+  /* ── SECTIONS ── */
+  section {
+    padding: 6rem 2rem;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+
+  .section-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--purple);
+    margin-bottom: 1rem;
+  }
+
+  .section-title {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(2rem, 4vw, 3rem);
+    font-weight: 700;
+    margin-bottom: 1rem;
+    color: var(--text-bright);
+  }
+
+  .section-desc {
+    color: var(--text-dim);
+    max-width: 640px;
+    margin-bottom: 3rem;
+    font-size: 1.05rem;
+  }
+
+  /* ── FLOW DIAGRAM ── */
+  .flow-container {
+    position: relative;
+    padding: 3rem 0;
+  }
+
+  .flow-row {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+    flex-wrap: wrap;
+  }
+
+  .flow-node {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 1.5rem 2rem;
+    text-align: center;
+    min-width: 180px;
+    position: relative;
+    transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+    backdrop-filter: blur(10px);
+  }
+
+  .flow-node:hover {
+    transform: translateY(-4px);
+    border-color: var(--purple);
+    box-shadow: 0 12px 40px rgba(201, 125, 255, 0.12);
+  }
+
+  .flow-node .icon {
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+    display: block;
+  }
+
+  .flow-node .name {
+    font-family: 'Playfair Display', serif;
+    font-weight: 700;
+    font-size: 1.1rem;
+    color: var(--text-bright);
+    margin-bottom: 0.3rem;
+  }
+
+  .flow-node .desc {
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    line-height: 1.5;
+  }
+
+  .flow-node.supervisor { border-color: var(--gold); }
+  .flow-node.supervisor:hover { box-shadow: 0 12px 40px rgba(255, 209, 102, 0.12); }
+  .flow-node.researcher { border-color: var(--purple); }
+  .flow-node.researcher:hover { box-shadow: 0 12px 40px rgba(201, 125, 255, 0.15); }
+  .flow-node.critic { border-color: var(--pink); }
+  .flow-node.critic:hover { box-shadow: 0 12px 40px rgba(233, 69, 96, 0.15); }
+  .flow-node.editor { border-color: var(--blue); }
+  .flow-node.editor:hover { box-shadow: 0 12px 40px rgba(100, 180, 255, 0.15); }
+  .flow-node.direct { border-color: var(--cyan); }
+  .flow-node.direct:hover { box-shadow: 0 12px 40px rgba(0, 212, 170, 0.12); }
+
+  .flow-arrow {
+    color: var(--text-dim);
+    font-size: 1.8rem;
+    opacity: 0.4;
+    user-select: none;
+  }
+
+  .flow-arrow.down {
+    display: block;
+    text-align: center;
+    margin: 0.5rem 0;
+    font-size: 1.4rem;
+  }
+
+  .flow-branches {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1.2rem;
+    margin-top: 1rem;
+  }
+
+  .branch-line {
+    height: 40px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .branch-line svg {
+    overflow: visible;
+  }
+
+  /* ── AGENT CARDS ── */
+  .agents-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.5rem;
+  }
+
+  .agent-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 2rem;
+    position: relative;
+    overflow: hidden;
+    transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+    backdrop-filter: blur(10px);
+  }
+
+  .agent-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    border-radius: 16px 16px 0 0;
+  }
+
+  .agent-card:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+  }
+
+  .agent-card.supervisor::before { background: linear-gradient(90deg, var(--gold), #ff9f1c); }
+  .agent-card.researcher::before { background: linear-gradient(90deg, var(--purple), #9b5de5); }
+  .agent-card.critic::before { background: linear-gradient(90deg, var(--pink), #ff6b6b); }
+  .agent-card.editor::before { background: linear-gradient(90deg, var(--blue), #48bfe3); }
+
+  .agent-card .card-icon {
+    font-size: 2.2rem;
+    margin-bottom: 1rem;
+    display: block;
+  }
+
+  .agent-card h3 {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: var(--text-bright);
+    margin-bottom: 0.5rem;
+  }
+
+  .agent-card .role {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 1rem;
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 4px;
+  }
+
+  .agent-card.supervisor .role { color: var(--gold); background: rgba(255,209,102,0.1); }
+  .agent-card.researcher .role { color: var(--purple); background: rgba(201,125,255,0.1); }
+  .agent-card.critic .role { color: var(--pink); background: rgba(233,69,96,0.1); }
+  .agent-card.editor .role { color: var(--blue); background: rgba(100,180,255,0.1); }
+
+  .agent-card p {
+    color: var(--text-dim);
+    font-size: 0.92rem;
+    margin-bottom: 1.2rem;
+  }
+
+  .tool-list {
+    list-style: none;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .tool-list li {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.68rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 4px 10px;
+    color: var(--text-dim);
+    transition: all 0.2s;
+  }
+
+  .tool-list li:hover {
+    color: var(--purple);
+    border-color: var(--purple);
+  }
+
+  /* ── STATE TABLE ── */
+  .state-section {
+    margin-top: 4rem;
+  }
+
+  .state-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+    backdrop-filter: blur(10px);
+  }
+
+  .state-table thead {
+    background: rgba(201,125,255,0.06);
+  }
+
+  .state-table th {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.72rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--purple);
+    padding: 1rem 1.5rem;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .state-table td {
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid rgba(201,125,255,0.06);
+    font-size: 0.9rem;
+    vertical-align: top;
+  }
+
+  .state-table tr:last-child td { border-bottom: none; }
+
+  .state-table code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.82rem;
+    background: rgba(201,125,255,0.08);
+    padding: 2px 8px;
+    border-radius: 4px;
+    color: var(--purple);
+  }
+
+  .state-table .type-tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.72rem;
+    color: var(--cyan);
+    background: rgba(0,212,170,0.08);
+    padding: 2px 8px;
+    border-radius: 4px;
+  }
+
+  /* ── TOOLS SECTION ── */
+  .tools-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1.2rem;
+  }
+
+  .tool-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.5rem;
+    backdrop-filter: blur(10px);
+    transition: all 0.3s;
+  }
+
+  .tool-card:hover {
+    border-color: var(--purple);
+    transform: translateY(-2px);
+  }
+
+  .tool-card h4 {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.85rem;
+    color: var(--text-bright);
+    margin-bottom: 0.5rem;
+  }
+
+  .tool-card .source {
+    font-size: 0.72rem;
+    color: var(--cyan);
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    margin-bottom: 0.8rem;
+    display: block;
+  }
+
+  .tool-card p {
+    color: var(--text-dim);
+    font-size: 0.85rem;
+  }
+
+  /* ── FOOTER ── */
+  footer {
+    text-align: center;
+    padding: 4rem 2rem;
+    color: var(--text-dim);
+    font-size: 0.8rem;
+    border-top: 1px solid var(--border);
+    max-width: 1100px;
+    margin: 2rem auto 0;
+  }
+
+  footer .tech-stack {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.72rem;
+    color: var(--purple);
+    margin-top: 0.5rem;
+  }
+
+  /* ── DIVIDER ── */
+  .divider {
+    width: 60px;
+    height: 2px;
+    background: linear-gradient(90deg, var(--purple), var(--pink));
+    border: none;
+    margin: 4rem auto;
+    border-radius: 2px;
+  }
+
+  /* ── ANIMATIONS ── */
+  @keyframes fadeDown {
+    from { opacity: 0; transform: translateY(-20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes bounce {
+    0%, 100% { transform: translateX(-50%) translateY(0); }
+    50% { transform: translateX(-50%) translateY(8px); }
+  }
+
+  .fade-in {
+    opacity: 0;
+    transform: translateY(30px);
+    transition: all 0.7s cubic-bezier(0.23, 1, 0.32, 1);
+  }
+
+  .fade-in.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 768px) {
+    .flow-branches { grid-template-columns: repeat(2, 1fr); }
+    .agents-grid { grid-template-columns: 1fr; }
+    section { padding: 4rem 1.5rem; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ════════════════════════════════════════ HERO ════════════════════════════════════════ -->
+<header class="hero">
+  <div class="hero-badge">◆ Documentação de Arquitetura</div>
+  <h1><span class="gradient">Academic Research</span><br>Agent</h1>
+  <p class="hero-sub">
+    Sistema multi-agente para pesquisa acadêmica construído com LangGraph, 
+    orquestrado por um Supervisor que roteia para agentes especializados em tempo real.
+  </p>
+  <div class="hero-stack">
+    <span class="tech-pill">LangGraph</span>
+    <span class="tech-pill">Qwen 3</span>
+    <span class="tech-pill">ArXiv API</span>
+    <span class="tech-pill">Semantic Scholar</span>
+    <span class="tech-pill">Gradio 6</span>
+    <span class="tech-pill">OpenRouter</span>
+  </div>
+  <div class="scroll-hint">Scroll<span></span></div>
+</header>
+
+<!-- ════════════════════════════════════════ FLOW ════════════════════════════════════════ -->
+<section class="fade-in">
+  <div class="section-label">01 — Visão Geral</div>
+  <h2 class="section-title">Fluxo do Grafo</h2>
+  <p class="section-desc">
+    Toda mensagem do usuário passa primeiro pelo Supervisor, que analisa a intenção 
+    e roteia para o agente especialista mais adequado. Cada agente executa sua tarefa 
+    e encerra — sem loops, sem re-roteamento.
+  </p>
+
+  <div class="flow-container">
+    <!-- User -->
+    <div class="flow-row">
+      <div class="flow-node" style="border-color: var(--text-dim);">
+        <span class="icon">👤</span>
+        <div class="name">Usuário</div>
+        <div class="desc">Mensagem + draft (opcional)</div>
+      </div>
+    </div>
+
+    <div class="flow-arrow down">↓</div>
+
+    <!-- Supervisor -->
+    <div class="flow-row">
+      <div class="flow-node supervisor">
+        <span class="icon">🧠</span>
+        <div class="name">Supervisor</div>
+        <div class="desc">Classifica intenção e roteia</div>
+      </div>
+    </div>
+
+    <div class="flow-arrow down" style="font-size: 1rem; margin: 1rem 0;">
+      ↙ &emsp; ↓ &emsp; ↓ &emsp; ↘
+    </div>
+
+    <!-- Agent branches -->
+    <div class="flow-branches">
+      <div class="flow-node researcher">
+        <span class="icon">🔍</span>
+        <div class="name">Researcher</div>
+        <div class="desc">Busca na literatura</div>
+      </div>
+      <div class="flow-node critic">
+        <span class="icon">🔬</span>
+        <div class="name">Critic</div>
+        <div class="desc">Revisão crítica</div>
+      </div>
+      <div class="flow-node editor">
+        <span class="icon">✏️</span>
+        <div class="name">Editor</div>
+        <div class="desc">Formatação científica</div>
+      </div>
+      <div class="flow-node direct">
+        <span class="icon">💬</span>
+        <div class="name">Direct</div>
+        <div class="desc">Resposta geral</div>
+      </div>
+    </div>
+
+    <div class="flow-arrow down" style="margin-top: 1.5rem;">↓</div>
+
+    <!-- END -->
+    <div class="flow-row">
+      <div class="flow-node" style="border-color: rgba(255,255,255,0.1); min-width: 120px;">
+        <span class="icon" style="font-size: 1.4rem;">⏹</span>
+        <div class="name">END</div>
+        <div class="desc">Resposta final ao usuário</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="divider">
+
+<!-- ════════════════════════════════════════ AGENTS ════════════════════════════════════════ -->
+<section class="fade-in">
+  <div class="section-label">02 — Agentes</div>
+  <h2 class="section-title">Detalhes dos Agentes</h2>
+  <p class="section-desc">
+    Cada agente possui um system prompt especializado, acesso a ferramentas específicas, 
+    e opera de forma independente dentro do grafo.
+  </p>
+
+  <div class="agents-grid">
+    <!-- Supervisor -->
+    <div class="agent-card supervisor">
+      <span class="card-icon">🧠</span>
+      <h3>Supervisor</h3>
+      <span class="role">Roteador Central</span>
+      <p>
+        Analisa a solicitação do usuário e decide qual agente especialista deve responder.
+        Retorna apenas o nome do agente: <em>researcher</em>, <em>critic</em>, <em>editor</em> ou <em>direct</em>.
+      </p>
+      <ul class="tool-list">
+        <li>classificação de intenção</li>
+        <li>roteamento condicional</li>
+      </ul>
+    </div>
+
+    <!-- Researcher -->
+    <div class="agent-card researcher">
+      <span class="card-icon">🔍</span>
+      <h3>Researcher</h3>
+      <span class="role">Agente Pesquisador</span>
+      <p>
+        Busca papers em múltiplas fontes, sintetiza resultados com métricas de impacto, 
+        identifica autores-chave e sugere artigos altamente citados e recentes.
+      </p>
+      <ul class="tool-list">
+        <li>search_arxiv</li>
+        <li>search_semantic_scholar</li>
+        <li>get_arxiv_paper_details</li>
+        <li>get_paper_citations</li>
+        <li>fetch_paper_from_url</li>
+      </ul>
+    </div>
+
+    <!-- Critic -->
+    <div class="agent-card critic">
+      <span class="card-icon">🔬</span>
+      <h3>Critic</h3>
+      <span class="role">Agente Crítico</span>
+      <p>
+        Revisa drafts científicos avaliando contribuição, cobertura da literatura, 
+        metodologia, resultados, limitações, estrutura e linguagem acadêmica.
+      </p>
+      <ul class="tool-list">
+        <li>search_arxiv</li>
+        <li>search_semantic_scholar</li>
+        <li>análise de draft</li>
+      </ul>
+    </div>
+
+    <!-- Editor -->
+    <div class="agent-card editor">
+      <span class="card-icon">✏️</span>
+      <h3>Editor</h3>
+      <span class="role">Editor Científico</span>
+      <p>
+        Especializado em formatação e estilo de revistas top (IEEE, Nature, ACM, Elsevier).
+        Corrige gramática, melhora argumentação e formata citações.
+      </p>
+      <ul class="tool-list">
+        <li>formatação IEEE/APA</li>
+        <li>revisão gramatical</li>
+        <li>melhoria de abstract</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<hr class="divider">
+
+<!-- ════════════════════════════════════════ STATE ════════════════════════════════════════ -->
+<section class="fade-in state-section">
+  <div class="section-label">03 — Estado</div>
+  <h2 class="section-title">AgentState</h2>
+  <p class="section-desc">
+    O estado compartilhado entre todos os nós do grafo. Definido como um <code>TypedDict</code> 
+    do LangGraph com redução de mensagens via <code>add_messages</code>.
+  </p>
+
+  <table class="state-table">
+    <thead>
+      <tr>
+        <th>Campo</th>
+        <th>Tipo</th>
+        <th>Descrição</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>messages</code></td>
+        <td><span class="type-tag">list[BaseMessage]</span></td>
+        <td>Histórico de mensagens com redução automática via <code>add_messages</code>. 
+            Inclui HumanMessage e AIMessage.</td>
+      </tr>
+      <tr>
+        <td><code>next_agent</code></td>
+        <td><span class="type-tag">str</span></td>
+        <td>Nome do próximo agente a ser acionado. Definido pelo Supervisor: 
+            <code>researcher</code>, <code>critic</code>, <code>editor</code> ou <code>direct</code>.</td>
+      </tr>
+      <tr>
+        <td><code>draft_text</code></td>
+        <td><span class="type-tag">str</span></td>
+        <td>Texto do rascunho do usuário para análise pelo Critic ou Editor. 
+            Pode incluir texto de PDF extraído.</td>
+      </tr>
+      <tr>
+        <td><code>research_context</code></td>
+        <td><span class="type-tag">str</span></td>
+        <td>Papers e resultados de busca acumulados pelo Researcher. 
+            Truncado em 3000 caracteres para contexto entre turnos.</td>
+      </tr>
+      <tr>
+        <td><code>iteration</code></td>
+        <td><span class="type-tag">int</span></td>
+        <td>Contador de iterações para evitar loops infinitos no grafo.</td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+<hr class="divider">
+
+<!-- ════════════════════════════════════════ TOOLS ════════════════════════════════════════ -->
+<section class="fade-in">
+  <div class="section-label">04 — Ferramentas</div>
+  <h2 class="section-title">Search Tools</h2>
+  <p class="section-desc">
+    Ferramentas de busca acadêmica implementadas como <code>@tool</code> do LangChain, 
+    acessíveis via function calling do LLM.
+  </p>
+
+  <div class="tools-grid">
+    <div class="tool-card">
+      <h4>search_arxiv()</h4>
+      <span class="source">ArXiv API</span>
+      <p>Busca papers por relevância. Retorna título, autores, resumo, link e PDF para até N resultados.</p>
+    </div>
+    <div class="tool-card">
+      <h4>get_arxiv_paper_details()</h4>
+      <span class="source">ArXiv API</span>
+      <p>Detalhes completos de um paper pelo ID: categorias, DOI, comentários e resumo integral.</p>
+    </div>
+    <div class="tool-card">
+      <h4>search_semantic_scholar()</h4>
+      <span class="source">Semantic Scholar API</span>
+      <p>Busca com métricas ricas: contagem de citações, PDF open access, filtro por ano.</p>
+    </div>
+    <div class="tool-card">
+      <h4>get_paper_citations()</h4>
+      <span class="source">Semantic Scholar API</span>
+      <p>Retorna papers que citam um artigo específico, com autores e contagem de citações.</p>
+    </div>
+    <div class="tool-card">
+      <h4>extract_pdf_text()</h4>
+      <span class="source">PyMuPDF (fitz)</span>
+      <p>Converte PDF local para Markdown legível. Trunca em 15k caracteres para caber no contexto do LLM.</p>
+    </div>
+    <div class="tool-card">
+      <h4>fetch_paper_from_url()</h4>
+      <span class="source">HTTP + BeautifulSoup</span>
+      <p>Busca conteúdo de URL (HTML ou PDF online) e converte para texto limpo.</p>
+    </div>
+  </div>
+</section>
+
+<hr class="divider">
+
+<!-- ════════════════════════════════════════ STRUCTURE ════════════════════════════════════════ -->
+<section class="fade-in">
+  <div class="section-label">05 — Estrutura do Projeto</div>
+  <h2 class="section-title">Organização de Arquivos</h2>
+  <p class="section-desc">
+    O projeto segue uma estrutura modular com separação clara entre agentes, 
+    ferramentas, configuração e interface.
+  </p>
+
+  <div style="background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px; padding: 2rem; backdrop-filter: blur(10px);">
+    <pre style="font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; line-height: 2; color: var(--text-dim);"><span style="color: var(--gold);">researcher_agent/</span>
+├── <span style="color: var(--text-bright);">main.py</span>              <span style="color: var(--text-dim);">← Entry point (CLI, Web, Test)</span>
+├── <span style="color: var(--text-bright);">requirements.txt</span>
+├── <span style="color: var(--text-bright);">README.md</span>
+│
+├── <span style="color: var(--purple);">agents/</span>
+│   ├── __init__.py
+│   └── <span style="color: var(--text-bright);">graph.py</span>          <span style="color: var(--text-dim);">← LangGraph: StateGraph, agentes, roteamento</span>
+│
+├── <span style="color: var(--pink);">tools/</span>
+│   ├── __init__.py
+│   └── <span style="color: var(--text-bright);">search_tools.py</span>   <span style="color: var(--text-dim);">← ArXiv, Semantic Scholar, PDF extraction</span>
+│
+├── <span style="color: var(--cyan);">config/</span>
+│   ├── __init__.py
+│   ├── <span style="color: var(--text-bright);">llm_client.py</span>     <span style="color: var(--text-dim);">← Cliente Qwen (OpenRouter / DashScope)</span>
+│   └── <span style="color: var(--text-bright);">.env</span>              <span style="color: var(--text-dim);">← API keys (OPENROUTER_API_KEY, QWEN_MODEL)</span>
+│
+└── <span style="color: var(--blue);">ui/</span>
+    ├── __init__.py
+    └── <span style="color: var(--text-bright);">app.py</span>            <span style="color: var(--text-dim);">← Interface Gradio 6 (chat, PDF upload, modos)</span></pre>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════ FOOTER ════════════════════════════════════════ -->
+<footer>
+  <p>Academic Research Agent — Documentação de Arquitetura</p>
+  <p class="tech-stack">LangGraph · Qwen 3 · ArXiv · Semantic Scholar · Gradio 6 · OpenRouter</p>
+</footer>
+
+<!-- ════════════════════════════════════════ SCROLL REVEAL ════════════════════════════════════════ -->
+<script>
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('visible');
+      }
+    });
+  }, { threshold: 0.1 });
+
+  document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
+</script>
+
+</body>
+</html>

@@ -1,0 +1,27 @@
+# Core LangChain packages
+langchain>=0.1.0
+langchain-community>=0.0.20
+langchain-openai>=0.0.5
+langchain-text-splitters>=0.0.1
+langchain-core>=0.1.0
+
+# LangGraph for multi-agent orchestration
+langgraph>=0.0.40
+
+# Vector database and embeddings
+chromadb>=0.4.22
+sentence-transformers>=2.2.2
+
+# Academic search APIs
+arxiv>=2.1.0
+httpx>=0.25.0
+
+# PDF processing
+PyMuPDF>=1.23.0
+beautifulsoup4>=4.12.0
+
+# UI
+gradio>=5.0.0
+
+# Environment variables
+python-dotenv>=1.0.0
