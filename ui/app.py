@@ -4,6 +4,7 @@ Access: http://localhost:7860
 """
 import os
 import sys
+from datetime import datetime
 
 import gradio as gr
 from dotenv import load_dotenv
@@ -39,14 +40,45 @@ except Exception as e:
 
 
 def process_pdf(pdf_file) -> str:
-    """Extracts text from an uploaded PDF."""
+    """Extracts text from an uploaded PDF and auto-indexes it."""
     if pdf_file is None:
         return ""
     try:
-        import fitz  # PyMuPDF
+        import fitz
+
+        # Extract text
         doc = fitz.open(pdf_file.name)
-        text = "\n\n".join(page.get_text("text") for page in doc)
-        return text[:12000]  # Limit to avoid context overflow
+        full_text = "\n\n".join(page.get_text("text") for page in doc)
+
+        # ✨ AUTO-INDEX: Save to memory when PDF is uploaded
+        try:
+            from tools.pdf_utils import extract_paper_metadata
+
+            # Extract metadata
+            metadata = extract_paper_metadata(full_text)
+
+            # Use filename if no title found
+            if not metadata.get("title"):
+                metadata["title"] = pdf_file.name.replace(".pdf", "")
+
+            # Add to memory
+            memory.add_paper(
+                paper_text=full_text[:15000],  # First 15k chars
+                metadata={
+                    "title": metadata.get("title", "Uploaded PDF"),
+                    "authors": metadata.get("authors", "Unknown"),
+                    "year": metadata.get("year", "N/A"),
+                    "source": "uploaded_pdf",
+                    "filename": pdf_file.name,
+                    "timestamp": datetime.now().isoformat(),
+                }
+            )
+            print(f"✅ Auto-indexed PDF: {metadata.get('title', pdf_file.name)}")
+        except Exception as e:
+            print(f"⚠️ Could not auto-index PDF: {e}")
+
+        # Return text for draft_text (limited to 12k to avoid context overflow)
+        return full_text[:12000]
     except Exception as e:
         return f"Error processing PDF: {str(e)}"
 
@@ -173,6 +205,8 @@ def list_indexed_papers() -> str:
                 output += f"   - ArXiv ID: {meta['arxiv_id']}\n"
             if meta.get('source'):
                 output += f"   - Source: {meta['source']}\n"
+            if meta.get('citations'):
+                output += f"   - Citations: {meta['citations']}\n"
             output += "\n"
 
         return output
@@ -373,7 +407,7 @@ EXAMPLE_QUERIES = [
 
 def build_interface():
     """Builds the complete Gradio interface with tabs."""
-    with gr.Blocks(title="Academic Research Agent", css=CUSTOM_CSS) as demo:
+    with gr.Blocks(title="Academic Research Agent") as demo:
         gr.HTML(HEADER_HTML)
 
         with gr.Tabs():
@@ -439,7 +473,7 @@ def build_interface():
                                 file_types=[".pdf"],
                                 type="filepath",
                             )
-                            gr.HTML("<p style='color:#9a9ab8; font-size:0.75rem;'>PDF text will be extracted automatically and used as context.</p>")
+                            gr.HTML("<p style='color:#9a9ab8; font-size:0.75rem;'>PDF text will be extracted and auto-indexed in your library.</p>")
 
                         with gr.Accordion("ℹ️ How to use", open=True):
                             gr.HTML("""
@@ -555,4 +589,5 @@ if __name__ == "__main__":
         share=False,
         show_error=True,
         inbrowser=True,
+        css=CUSTOM_CSS,
     )

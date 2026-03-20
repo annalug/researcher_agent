@@ -124,7 +124,9 @@ Paste your text in the "Draft" box and send:
 "What is the difference between TSTR and TRTS in synthetic data evaluation?"
 "How to calculate the p-value for classifier comparison?"
 ```
-
+Note:
+General questions: Portuguese is fine.
+Paper searches: English is preferred.
 ---
 
 ## 📁 Project Structure

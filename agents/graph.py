@@ -31,6 +31,7 @@ from tools.search_tools import (
     search_semantic_scholar,
 )
 from tools.memory_store import AcademicMemory
+from tools.pdf_utils import extract_key_sections
 
 # Load environment variables
 load_dotenv(os.path.join(os.path.dirname(__file__), "..", "config", ".env"))
@@ -161,24 +162,42 @@ def create_researcher_agent(llm):
 
     def researcher_node(state: AgentState) -> AgentState:
         messages = state["messages"]
+        draft = state.get("draft_text", "")
+
         last_human = next(
             (m for m in reversed(messages) if isinstance(m, HumanMessage)), None
         )
 
-        # ✨ Retrieve context from memory
+        # ✨ Build enhanced system prompt
         enhanced_system = RESEARCHER_SYSTEM
+
+        # Add memory context if available
         if last_human:
             context_from_memory = memory.get_research_context(
                 last_human.content,
                 k=3
             )
-
             if context_from_memory and "Previous Research Context" in context_from_memory:
-                enhanced_system = (
-                    f"{RESEARCHER_SYSTEM}\n\n"
-                    f"{context_from_memory}\n\n"
-                    f"Use this context to enrich your search and avoid repeating work already done."
-                )
+                enhanced_system += f"\n\n{context_from_memory}\n\n"
+                enhanced_system += "Use this context to enrich your search and avoid repeating work.\n\n"
+
+        # ✨ NEW: Add uploaded PDF content if present
+        if draft and draft.strip():
+            # Extract key sections (Abstract, Introduction) instead of raw text
+            key_content = extract_key_sections(draft, max_chars=5000)
+
+            enhanced_system += (
+                f"\n\n## Key Sections from Uploaded Paper:\n"
+                f"{key_content}\n\n"
+                f"The user has uploaded a paper. Based on the abstract and introduction above, "
+                f"extract the main research question, methodology, and technical approach. "
+                f"Then search for papers with similar:\n"
+                f"- Research problems or domains\n"
+                f"- Methodological approaches\n"
+                f"- Technical techniques or algorithms\n"
+                f"- Application areas\n\n"
+                f"Prioritize recent papers (last 3 years) and highly cited works."
+            )
 
         response = agent_llm.invoke([
             SystemMessage(content=enhanced_system),
@@ -195,16 +214,40 @@ def create_researcher_agent(llm):
                         result = tool_map[tc["name"]].invoke(tc["args"])
                         tool_results.append(f"[{tc['name']}]\n{result}")
 
-                        # ✨ Save papers found to vector DB
+                        # ✨ Save papers found to vector DB WITH PROPER METADATA
                         if tc["name"] in ["search_arxiv", "search_semantic_scholar"] and result:
-                            memory.add_paper(
-                                paper_text=result,
-                                metadata={
-                                    "source": tc["name"].replace("search_", ""),
-                                    "query": tc["args"].get("query", ""),
-                                    "timestamp": datetime.now().isoformat(),
-                                }
-                            )
+                            # Import parser
+                            try:
+                                from tools.search_parser import extract_metadata_from_search_result
+
+                                # Extract structured metadata
+                                papers = extract_metadata_from_search_result(result, tc["name"])
+
+                                # Save each paper with full metadata
+                                for paper in papers:
+                                    memory.add_paper(
+                                        paper_text=result,  # Full search result text
+                                        metadata={
+                                            "title": paper.get("title", ""),
+                                            "authors": paper.get("authors", "Unknown"),
+                                            "year": paper.get("year", "N/A"),
+                                            "arxiv_id": paper.get("arxiv_id", ""),
+                                            "citations": paper.get("citations", "0"),
+                                            "source": paper.get("source", tc["name"].replace("search_", "")),
+                                            "query": tc["args"].get("query", ""),
+                                            "timestamp": datetime.now().isoformat(),
+                                        }
+                                    )
+                            except ImportError:
+                                # Fallback if parser not available
+                                memory.add_paper(
+                                    paper_text=result,
+                                    metadata={
+                                        "source": tc["name"].replace("search_", ""),
+                                        "query": tc["args"].get("query", ""),
+                                        "timestamp": datetime.now().isoformat(),
+                                    }
+                                )
                     except Exception as e:
                         tool_results.append(f"[{tc['name']}] Error: {str(e)}")
 
